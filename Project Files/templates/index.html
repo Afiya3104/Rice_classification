@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rice GrainPalette - Deep Learning Classifier</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-seedling"></i>
+                <h1>Rice GrainPalette</h1>
+            </div>
+            <nav class="nav">
+                <a href="index.html" class="nav-link active">Home</a>
+                <a href="details.html" class="nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h2 class="hero-title">AI-Powered Rice Grain Classification</h2>
+                    <p class="hero-subtitle">Upload an image of rice grains and get instant classification results using deep learning technology</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="upload-section">
+            <div class="container">
+                <div class="upload-card">
+                    <div class="upload-header">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>Upload Rice Image</h3>
+                        <p>Choose a clear image of rice grains for classification</p>
+                    </div>
+                    
+                    <form id="uploadForm" action="/predict" method="post" enctype="multipart/form-data">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="imageInput" name="file" accept="image/*" required>
+                            <label for="imageInput" class="file-input-label">
+                                <i class="fas fa-plus"></i>
+                                <span>Choose Image</span>
+                            </label>
+                        </div>
+                        
+                        <div id="imagePreview" class="image-preview" style="display: none;">
+                            <img id="previewImage" src="" alt="Preview">
+                            <button type="button" id="removeImage" class="remove-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <button type="submit" class="classify-btn" id="classifyBtn" disabled>
+                            <i class="fas fa-brain"></i>
+                            Classify Rice Type
+                        </button>
+                    </form>
+                    
+                    <div id="loadingIndicator" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Analyzing image...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container">
+                <h3 class="section-title">Supported Rice Types</h3>
+                <div class="rice-types">
+                    <div class="rice-type">
+                        <div class="rice-icon">🌾</div>
+                        <h4>Arborio</h4>
+                        <p>Short-grain Italian rice, perfect for risotto</p>
+                    </div>
+                    <div class="rice-type">
+                        <div class="rice-icon">🌾</div>
+                        <h4>Basmati</h4>
+                        <p>Long-grain aromatic rice from India</p>
+                    </div>
+                    <div class="rice-type">
+                        <div class="rice-icon">🌾</div>
+                        <h4>Ipsala</h4>
+                        <p>Turkish medium-grain rice variety</p>
+                    </div>
+                    <div class="rice-type">
+                        <div class="rice-icon">🌾</div>
+                        <h4>Jasmine</h4>
+                        <p>Fragrant long-grain rice from Thailand</p>
+                    </div>
+                    <div class="rice-type">
+                        <div class="rice-icon">🌾</div>
+                        <h4>Karacadag</h4>
+                        <p>Premium Turkish rice variety</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Rice GrainPalette. AI-powered rice classification system.</p>
+        </div>
+    </footer>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImage = document.getElementById('previewImage');
+        const removeImage = document.getElementById('removeImage');
+        const classifyBtn = document.getElementById('classifyBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    classifyBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removeImage.addEventListener('click', function() {
+            imageInput.value = '';
+            imagePreview.style.display = 'none';
+            classifyBtn.disabled = true;
+        });
+
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', imageInput.files[0]);
+            
+            loadingIndicator.style.display = 'block';
+            classifyBtn.disabled = true;
+            
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingIndicator.style.display = 'none';
+                
+                // Store results in sessionStorage and redirect
+                sessionStorage.setItem('classificationResults', JSON.stringify(data));
+                window.location.href = 'results.html';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingIndicator.style.display = 'none';
+                classifyBtn.disabled = false;
+                alert('An error occurred during classification. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html>

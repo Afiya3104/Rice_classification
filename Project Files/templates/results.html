@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classification Results - Rice GrainPalette</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-seedling"></i>
+                <h1>Rice GrainPalette</h1>
+            </div>
+            <nav class="nav">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="details.html" class="nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <section class="results-header">
+                <h2>Classification Results</h2>
+                <button onclick="window.location.href='index.html'" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    Classify Another Image
+                </button>
+            </section>
+
+            <div class="results-content">
+                <div class="result-card">
+                    <div class="uploaded-image">
+                        <h3>Analyzed Image</h3>
+                        <div id="imageContainer" class="image-container">
+                            <img id="analyzedImage" src="" alt="Analyzed rice image">
+                        </div>
+                    </div>
+
+                    <div class="prediction-result">
+                        <div class="main-prediction">
+                            <div class="prediction-icon">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <div class="prediction-content">
+                                <h3>Predicted Rice Type</h3>
+                                <div id="predictedType" class="predicted-type"></div>
+                                <div id="confidence" class="confidence"></div>
+                            </div>
+                        </div>
+
+                        <div class="confidence-breakdown">
+                            <h4>Confidence Breakdown</h4>
+                            <div id="confidenceChart" class="chart-container">
+                                <canvas id="confidenceChartCanvas"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="all-predictions">
+                            <h4>All Predictions</h4>
+                            <div id="allPredictions" class="predictions-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rice-info-card" id="riceInfoCard" style="display: none;">
+                    <h3>About This Rice Type</h3>
+                    <div id="riceDescription" class="rice-description"></div>
+                    <div id="riceCharacteristics" class="rice-characteristics"></div>
+                </div>
+
+                <div class="actions">
+                    <button onclick="downloadResults()" class="action-btn">
+                        <i class="fas fa-download"></i>
+                        Download Results
+                    </button>
+                    <button onclick="shareResults()" class="action-btn">
+                        <i class="fas fa-share"></i>
+                        Share Results
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Rice GrainPalette. AI-powered rice classification system.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Rice type information
+        const riceInfo = {
+            'Arborio': {
+                description: 'Short-grain rice variety from Italy, commonly used for risotto. Known for its high starch content and creamy texture.',
+                characteristics: ['High starch content', 'Short grain', 'Creamy when cooked', 'Ideal for risotto', 'Italian origin']
+            },
+            'Basmati': {
+                description: 'Long-grain aromatic rice from the Indian subcontinent. Famous for its distinctive fragrance and fluffy texture.',
+                characteristics: ['Long grain', 'Aromatic', 'Fluffy texture', 'Non-sticky', 'Indian origin']
+            },
+            'Ipsala': {
+                description: 'Turkish rice variety known for its medium grain size and good cooking qualities. Popular in Turkish cuisine.',
+                characteristics: ['Medium grain', 'Good absorption', 'Turkish origin', 'Versatile cooking', 'Pilaf suitable']
+            },
+            'Jasmine': {
+                description: 'Long-grain fragrant rice from Thailand. Known for its subtle floral aroma and slightly sticky texture when cooked.',
+                characteristics: ['Long grain', 'Floral aroma', 'Slightly sticky', 'Thai origin', 'Asian cuisine']
+            },
+            'Karacadag': {
+                description: 'Turkish rice variety grown in the Karacadag region. Known for its quality and distinctive characteristics.',
+                characteristics: ['Premium quality', 'Turkish origin', 'Distinctive taste', 'Regional specialty', 'High grade']
+            }
+        };
+
+        // Load and display results
+        document.addEventListener('DOMContentLoaded', function() {
+            const results = JSON.parse(sessionStorage.getItem('classificationResults') || '{}');
+            
+            if (!results.predicted_class) {
+                // No results found, redirect to home
+                window.location.href = 'index.html';
+                return;
+            }
+
+            displayResults(results);
+        });
+
+        function displayResults(results) {
+            // Display uploaded image
+            if (results.image_data) {
+                document.getElementById('analyzedImage').src = results.image_data;
+            }
+
+            // Display main prediction
+            document.getElementById('predictedType').textContent = results.predicted_class;
+            document.getElementById('confidence').textContent = `${(results.confidence * 100).toFixed(1)}% confidence`;
+
+            // Display all predictions
+            const predictionsContainer = document.getElementById('allPredictions');
+            results.all_predictions.forEach((prediction, index) => {
+                const predictionElement = document.createElement('div');
+                predictionElement.className = 'prediction-item';
+                predictionElement.innerHTML = `
+                    <div class="prediction-name">${prediction.class}</div>
+                    <div class="prediction-bar">
+                        <div class="prediction-fill" style="width: ${prediction.confidence * 100}%"></div>
+                    </div>
+                    <div class="prediction-percentage">${(prediction.confidence * 100).toFixed(1)}%</div>
+                `;
+                predictionsContainer.appendChild(predictionElement);
+            });
+
+            // Create confidence chart
+            createConfidenceChart(results.all_predictions);
+
+            // Display rice information
+            displayRiceInfo(results.predicted_class);
+        }
+
+        function createConfidenceChart(predictions) {
+            const ctx = document.getElementById('confidenceChartCanvas').getContext('2d');
+            const labels = predictions.map(p => p.class);
+            const data = predictions.map(p => (p.confidence * 100).toFixed(1));
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Confidence (%)',
+                        data: data,
+                        backgroundColor: [
+                            '#2E8B57',
+                            '#4682B4',
+                            '#FF6347',
+                            '#32CD32',
+                            '#FFD700'
+                        ],
+                        borderColor: [
+                            '#2E8B57',
+                            '#4682B4',
+                            '#FF6347',
+                            '#32CD32',
+                            '#FFD700'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayRiceInfo(predictedType) {
+            const info = riceInfo[predictedType];
+            if (info) {
+                document.getElementById('riceDescription').textContent = info.description;
+                
+                const characteristicsContainer = document.getElementById('riceCharacteristics');
+                characteristicsContainer.innerHTML = '<h4>Key Characteristics:</h4>';
+                const characteristicsList = document.createElement('ul');
+                info.characteristics.forEach(characteristic => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = characteristic;
+                    characteristicsList.appendChild(listItem);
+                });
+                characteristicsContainer.appendChild(characteristicsList);
+                
+                document.getElementById('riceInfoCard').style.display = 'block';
+            }
+        }
+
+        function downloadResults() {
+            const results = JSON.parse(sessionStorage.getItem('classificationResults') || '{}');
+            const dataStr = JSON.stringify(results, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `rice_classification_results_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function shareResults() {
+            const results = JSON.parse(sessionStorage.getItem('classificationResults') || '{}');
+            const shareText = `Rice Classification Result: ${results.predicted_class} (${(results.confidence * 100).toFixed(1)}% confidence) - Analyzed with Rice GrainPalette AI`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Rice Classification Result',
+                    text: shareText,
+                    url: window.location.href
+                });
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert('Results copied to clipboard!');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
